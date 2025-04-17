@@ -5,6 +5,7 @@ import io.restassured.http.ContentType;
 import io.restassured.response.Response;
 import org.hbn.flowcheck.utils.ExcelReader;
 import org.hbn.flowcheck.utils.ConfigReader;
+import org.hbn.flowcheck.utils.ExcelWriter;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Tag;
@@ -34,6 +35,7 @@ public class ExcelDrivenApiIntegrationTest {
         List<Map<String, String>> testCases = ExcelReader.getTestData("Sheet1", excelPath);
 
         int executedTestCases = 0;
+        int rowIndex = 1;
 
         for (Map<String, String> testCase : testCases) {
             String method = testCase.get("method");
@@ -43,7 +45,18 @@ public class ExcelDrivenApiIntegrationTest {
             int expectedStatus = (int) Double.parseDouble(testCase.get("status"));
 
             executedTestCases++;
-            runApiTest(method, endpoint, header, body, expectedStatus, executedTestCases);
+            String result;
+
+            try {
+                runApiTest(method, endpoint, header, body, expectedStatus, executedTestCases);
+                result = "Pass";
+            } catch (AssertionError | Exception e) {
+                result = "Fail";
+                System.out.println("❌ Test case failed at row " + rowIndex + ": " + e.getMessage());
+            }
+
+            ExcelWriter.writeTestResult(excelPath, "Sheet1", rowIndex, result);
+            rowIndex++;
         }
 
         System.out.println("✅ Total Test Cases Executed: " + executedTestCases);
