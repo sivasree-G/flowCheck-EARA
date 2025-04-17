@@ -2,6 +2,7 @@ package org.hbn.flowcheck;
 
 import io.restassured.RestAssured;
 import io.restassured.http.ContentType;
+import io.restassured.response.Response;
 import org.hbn.flowcheck.utils.ExcelReader;
 import org.hbn.flowcheck.utils.ConfigReader;
 import org.junit.jupiter.api.BeforeAll;
@@ -21,7 +22,6 @@ public class ExcelDrivenApiIntegrationTest {
 
     @BeforeAll
     public static void setUp() {
-        // Get the base URI from the configuration file
         RestAssured.baseURI = ConfigReader.getBaseURI();
     }
 
@@ -30,33 +30,27 @@ public class ExcelDrivenApiIntegrationTest {
     @DisplayName("Test Case: API Tests from Excel")
     @Description("This test runs all API tests from the Excel data")
     public void testApiRequestsFromExcel() {
-        // Get the Excel path from the configuration file
         String excelPath = ConfigReader.getExcelPath();
-        List<Map<String, String>> testCases = ExcelReader.getTestData("Sheet1", excelPath);  // Read all test cases
+        List<Map<String, String>> testCases = ExcelReader.getTestData("Sheet1", excelPath);
 
-        // Start a counter to track how many test cases were executed
         int executedTestCases = 0;
 
         for (Map<String, String> testCase : testCases) {
-            // Extract each test case's details
             String method = testCase.get("method");
             String endpoint = testCase.get("endpoint");
             String header = testCase.get("header");
             String body = testCase.get("body");
             int expectedStatus = (int) Double.parseDouble(testCase.get("status"));
 
-            // Run API test for this particular case and report each test case separately
             executedTestCases++;
             runApiTest(method, endpoint, header, body, expectedStatus, executedTestCases);
         }
 
-        // Print the total number of test cases executed in the report
-        System.out.println("Total Test Cases Executed: " + executedTestCases);
+        System.out.println("✅ Total Test Cases Executed: " + executedTestCases);
     }
 
     @Step("Running API Test for method: {0} on endpoint: {1}, Test Case No: {2}")
     private void runApiTest(String method, String endpoint, String header, String body, int expectedStatus, int testCaseNumber) {
-        // Prepare the request
         var request = given();
 
         if (header != null && !header.isEmpty()) {
@@ -67,30 +61,35 @@ public class ExcelDrivenApiIntegrationTest {
             request.body(body);
         }
 
-        // Execute the request based on the method
+        Response response;
+
         switch (method.toUpperCase()) {
             case "POST":
-                request.when().post(endpoint).then().statusCode(expectedStatus);
-                // Assert the response
-                assertEquals(expectedStatus, request.when().post(endpoint).getStatusCode());
+                response = request.when().post(endpoint);
                 break;
             case "GET":
-                request.when().get(endpoint).then().statusCode(expectedStatus);
-                // Assert the response
-                assertEquals(expectedStatus, request.when().get(endpoint).getStatusCode());
+                response = request.when().get(endpoint);
                 break;
             case "PUT":
-                request.when().put(endpoint).then().statusCode(expectedStatus);
-                // Assert the response
-                assertEquals(expectedStatus, request.when().put(endpoint).getStatusCode());
+                response = request.when().put(endpoint);
                 break;
             case "DELETE":
-                request.when().delete(endpoint).then().statusCode(expectedStatus);
-                // Assert the response
-                assertEquals(expectedStatus, request.when().delete(endpoint).getStatusCode());
+                response = request.when().delete(endpoint);
                 break;
             default:
                 throw new IllegalArgumentException("Unsupported method: " + method);
         }
+
+        // Console Output
+        System.out.println("---------- Test Case #" + testCaseNumber + " ----------");
+        System.out.println("Method: " + method);
+        System.out.println("Endpoint: " + endpoint);
+        System.out.println("Expected Status: " + expectedStatus);
+        System.out.println("Actual Status: " + response.getStatusCode());
+        System.out.println("Response Body:\n" + response.getBody().asPrettyString());
+        System.out.println("----------------------------------------------");
+
+        // Assertion
+        assertEquals(expectedStatus, response.getStatusCode());
     }
 }
